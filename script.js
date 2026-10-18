@@ -393,6 +393,38 @@
     if(isGroup())groupPatch(id,{title:it.title,price:it.price,note:it.note});
   });
 
+
+  /* ---------- themes ---------- */
+  (function(){
+    var THEMES=[["ironman", "Iron Man", "#0d0b0c", "#17131a", "#c8202f", "#ff4757", "#f2b73a", "#f2ece6", "#b9aea6"], ["modern", "Modern", "#0b0b0f", "#141419", "#5b5ff0", "#7c7ffb", "#f4f4f6", "#f4f4f6", "#9b9ba7"], ["midnight", "Midnight Blue", "#070b16", "#0f1628", "#2f6bff", "#5b8cff", "#8fb8ff", "#e8eefc", "#9aa7c4"], ["neon", "Neon", "#07060b", "#110d18", "#ff2e93", "#ff5cb0", "#00e5ff", "#f5f0ff", "#b0a6c8"], ["ocean", "Ocean", "#04141c", "#0a1f2a", "#0891b2", "#22c3e0", "#5eead4", "#e6f6fb", "#93b6c3"], ["forest", "Forest", "#06110b", "#0d1a12", "#15803d", "#22c55e", "#d4b85a", "#eaf6ee", "#9db8a6"], ["galaxy", "Purple Galaxy", "#0b0716", "#150f26", "#7c3aed", "#a06bff", "#f0abfc", "#f1ecff", "#aea3cc"], ["sunset", "Sunset", "#1a0b10", "#22111a", "#e11d48", "#fb5277", "#ff9f43", "#fff1ea", "#d1a9a0"], ["light", "Light", "#f4f6fb", "#ffffff", "#1d4ed8", "#2563eb", "#1d4ed8", "#14161c", "#5b6271"], ["mono", "Black & White", "#0a0a0a", "#151515", "#e5e5e5", "#ffffff", "#ffffff", "#f5f5f5", "#a3a3a3"], ["candy", "Candy", "#fff0f6", "#ffffff", "#db2777", "#ec4899", "#8b5cf6", "#3a0f24", "#8a5570"]];
+    var K_THEME="wishlist-theme", grid=$("tgrid"), sheet=$("tsheet");
+    function cur(){return document.documentElement.getAttribute("data-theme")||"ironman"}
+    function apply(k){
+      var t=null;for(var i=0;i<THEMES.length;i++)if(THEMES[i][0]===k)t=THEMES[i];
+      if(!t){t=THEMES[0];k=t[0]}
+      document.documentElement.setAttribute("data-theme",k);
+      var m=document.querySelector('meta[name="theme-color"]');if(m)m.setAttribute("content",t[2]);
+      try{localStorage.setItem(K_THEME,k)}catch(_){}
+      draw();
+    }
+    function draw(){
+      var c=cur();grid.innerHTML="";
+      THEMES.forEach(function(t){
+        var b=document.createElement("button");b.type="button";b.className="tsw"+(t[0]===c?" on":"");b.dataset.theme=t[0];
+        b.setAttribute("aria-pressed",t[0]===c?"true":"false");
+        b.innerHTML='<span class="pv" style="background:linear-gradient(160deg,'+t[2]+' 55%,'+t[3]+')"><i class="a" style="background:'+t[4]+'"></i><i class="b" style="background:'+t[8]+';opacity:.55"></i><b style="background:'+t[6]+'"></b></span><span class="nm" style="background:'+t[3]+';color:'+t[7]+'"><span></span><span class="ck">✓</span></span>';
+        b.querySelector(".nm span").textContent=t[1];
+        grid.appendChild(b);
+      });
+    }
+    grid.addEventListener("click",function(e){var b=e.target.closest(".tsw");if(b)apply(b.dataset.theme)});
+    document.addEventListener("click",function(e){if(e.target.closest("[data-open-themes]")){draw();sheet.classList.remove("hidden")}});
+    $("t-close").addEventListener("click",function(){sheet.classList.add("hidden")});
+    sheet.addEventListener("click",function(e){if(e.target===sheet)sheet.classList.add("hidden")});
+    var saved=null;try{saved=localStorage.getItem(K_THEME)}catch(_){}
+    if(saved&&saved!==cur())apply(saved);
+  })();
+
   /* ---------- boot ---------- */
   body.classList.add("locked");
   // finish any personal item that was mid-fetch when the page closed

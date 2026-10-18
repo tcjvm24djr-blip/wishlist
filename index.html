@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="ironman">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -10,12 +10,14 @@
   <meta name="apple-mobile-web-app-title" content="Wishlist">
   <meta property="og:title" content="Wishlist">
   <meta property="og:description" content="Paste any link and it pops up on your wishlist.">
+  <script>(function(){var m={"ironman":"#0d0b0c","modern":"#0b0b0f","midnight":"#070b16","neon":"#07060b","ocean":"#04141c","forest":"#06110b","galaxy":"#0b0716","sunset":"#1a0b10","light":"#f4f6fb","mono":"#0a0a0a","candy":"#fff0f6"},t;try{t=localStorage.getItem("wishlist-theme")}catch(e){}if(!m[t])t="ironman";document.documentElement.setAttribute("data-theme",t);document.querySelector('meta[name="theme-color"]').setAttribute("content",m[t])})()</script>
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="styles.css">
 </head>
 <body class="locked">
   <div id="login" class="login" role="dialog" aria-modal="true" aria-labelledby="login-h">
     <div class="login-card">
+      <button type="button" class="theme-btn login-theme" data-open-themes aria-label="Change theme">🎨 Theme</button>
       <div class="gem" aria-hidden="true"><span>★</span></div>
       <h2 id="login-h">Welcome to Wishlist</h2>
       <p>Press start to open the website.</p>
@@ -27,6 +29,7 @@
 
   <nav class="tabs" aria-label="Lists">
     <div class="tabs-scroll" id="tabs" role="tablist"></div>
+    <button type="button" id="theme-btn" class="theme-btn" data-open-themes aria-label="Change theme">🎨</button>
     <button type="button" id="groups-btn" class="groups-btn">＋ Groups</button>
   </nav>
 
@@ -112,6 +115,13 @@
       <input id="nick" type="text" maxlength="20" placeholder="Nickname">
       <div class="sheet-btns"><button type="button" id="n-skip" class="ghost">Skip</button><button type="submit" class="add">Save</button></div>
     </form>
+  </div>
+
+  <div id="tsheet" class="sheet tsheet hidden" role="dialog" aria-modal="true" aria-labelledby="tsheet-h">
+    <div class="sheet-card">
+      <div class="sheet-top"><h3 id="tsheet-h">🎨 Themes</h3><button type="button" id="t-close" class="x" aria-label="Close">✕</button></div>
+      <div id="tgrid" class="tgrid"></div>
+    </div>
   </div>
 
   <div id="toast" class="toast hidden" role="status"></div>
