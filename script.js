@@ -501,9 +501,12 @@
     toast("Adding pic…");
     shrink(f).then(function(p){return setPhoto(id,p)}).catch(function(e){toast(e.message||"Couldn't use that photo")});
   });
-  function showPrev(src){
+  function showPrev(src,fromLink){
     var p=$("e-prev"); p.innerHTML="";
-    if(src){var im=el("img");im.alt="";im.referrerPolicy="no-referrer";im.src=src;im.onerror=function(){p.innerHTML='<span>That link isn\u2019t a picture</span>'};p.appendChild(im);p.classList.remove("empty")}
+    if(src){
+      var im=el("img"),n=0,s=/^https?:/.test(src)?picUrl(src):src;im.alt="";im.referrerPolicy="no-referrer";
+      im.onerror=function(){n++;if(n===1&&/^https?:/.test(s)&&!fromLink){im.src=s+(s.indexOf("?")<0?"?":"&")+"r=2"}else p.innerHTML=fromLink?'<span>That link isn\u2019t a picture</span>':'<span>Pic</span>'};
+      im.src=s;p.appendChild(im);p.classList.remove("empty")}
     else{p.appendChild(el("span",null,"No pic"));p.classList.add("empty")}
     $("e-rm").classList.toggle("hidden",!src);
     $("e-photo-txt").textContent=src?"📷 Change photo":"📷 Add photo";
@@ -523,7 +526,7 @@
   $("e-img").addEventListener("input",function(){
     var v=this.value.trim();
     if(!v){ePhoto=null;var it=items.filter(function(x){return x.id===editingId})[0];showPrev(it&&it.image||"");return}
-    if(/^https?:\/\/\S+$/i.test(v)){ePhoto={link:v.slice(0,600)};showPrev(v);$("e-pmsg").textContent=""}
+    if(/^https?:\/\/\S+$/i.test(v)){ePhoto={link:v.slice(0,600)};showPrev(v,true);$("e-pmsg").textContent=""}
     else $("e-pmsg").textContent="Paste a link that starts with https://";
   });
   $("e-rm").addEventListener("click",function(){ePhoto={remove:true};$("e-img").value="";showPrev("")});
