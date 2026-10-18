@@ -13,7 +13,7 @@
   function showPicker(){pick=null;btns.classList.remove("hidden");pwform.classList.add("hidden");err.textContent="";pw.value=""}
   btns.addEventListener("click",function(e){
     var b=e.target.closest("button[data-user]"); if(!b)return;
-    pick=b.getAttribute("data-user"); $("pw-name").textContent=pick;
+    pick=b.getAttribute("data-user"); login(pick); return; $("pw-name").textContent=pick;
     btns.classList.add("hidden"); pwform.classList.remove("hidden"); err.textContent=""; pw.value=""; setTimeout(function(){pw.focus()},50);
   });
   $("pw-back").addEventListener("click",showPicker);
