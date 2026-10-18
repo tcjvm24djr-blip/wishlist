@@ -128,3 +128,5 @@ body.locked > *:not(#login){filter:blur(14px);pointer-events:none;user-select:no
 
 .login-btns .start-btn{grid-column:1/-1;width:100%;font-size:1.25rem;padding:16px 20px;letter-spacing:.06em}
 .login-btns:has(.start-btn){display:flex;justify-content:center}
+.login-btns .start-btn::before,.login-btns .start-btn::after{display:none!important;content:none!important}
+.login-btns .start-btn{justify-content:center;background:linear-gradient(180deg,var(--gold2),var(--gold));color:#1a1205;font-weight:800;border-color:var(--gold)}
