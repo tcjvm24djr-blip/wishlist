@@ -125,3 +125,6 @@ body.locked > *:not(#login){filter:blur(14px);pointer-events:none;user-select:no
 .pw-back{border:none;background:none;color:var(--muted);cursor:pointer;padding:6px}
 .shake{animation:shake .35s}
 @keyframes shake{25%{transform:translateX(-8px)}75%{transform:translateX(8px)}}
+
+.login-btns .start-btn{grid-column:1/-1;width:100%;font-size:1.25rem;padding:16px 20px;letter-spacing:.06em}
+.login-btns:has(.start-btn){display:flex;justify-content:center}

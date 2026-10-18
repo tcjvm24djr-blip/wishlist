@@ -27,7 +27,7 @@
   function login(name){
     user=name; try{localStorage.setItem(USER_KEY,name)}catch(_){}
     body.classList.remove("locked"); showPicker();
-    $("who").textContent=name; $("avatar").textContent=name.charAt(0); $("owner").textContent=name+"'s";
+    $("who").textContent=name; $("avatar").textContent=name.charAt(0); $("owner").textContent="My";
     load(); render();
   }
   $("switch").addEventListener("click",function(){
@@ -196,7 +196,7 @@
 
   /* ---------- boot ---------- */
   var saved=null; try{saved=localStorage.getItem(USER_KEY)}catch(_){}
-  if(saved&&H[saved]) login(saved); else body.classList.add("locked");
+  body.classList.add("locked");
   // finish any item that was mid-fetch when the page closed
   if(user){items.forEach(function(it){if(it.loading){it.loading=false;it.title=it.title||domain(it.url)}});save();render()}
 })();
