@@ -276,6 +276,7 @@
     best=best.replace(/\b(prod|sku|p|dp|pd|item)\d*\b/gi,"").replace(/\s+/g," ").trim();
     return best.split(" ").map(function(w){return /^(and|or|of|the|with|in|for|a)$/i.test(w)?w.toLowerCase():w.charAt(0).toUpperCase()+w.slice(1)}).join(" ").replace(/^./,function(c){return c.toUpperCase()}).slice(0,120);
   }
+  function picUrl(u){return /^https:\/\/assets\.aritzia\.com\//.test(u)?u.replace(/,w_\d{3,4}\//,",w_700/"):u}
   function timed(p,ms){return Promise.race([p,new Promise(function(r){setTimeout(function(){r(null)},ms)})])}
   function microlink(url){
     return timed(fetch("https://api.microlink.io/?url="+encodeURIComponent(url)).then(function(r){return r.json()}).then(function(j){
@@ -370,7 +371,17 @@
       th.appendChild(ph);
       if(it.price) th.appendChild(el("span","price-tag",fmtPrice(it.price)));
     }
-    if(it.image){img.src=it.image; img.onerror=noPic; th.appendChild(img)}
+    if(it.image){
+      // some shops (Aritzia) refuse the very first hotlinked request: retry once, then try the relay, then show Add pic
+      var tries=0, src=picUrl(it.image);
+      img.onerror=function(){
+        tries++;
+        if(tries===1&&/^https?:/.test(src)){setTimeout(function(){img.src=src+(src.indexOf("?")<0?"?":"&")+"r=1"},500)}
+        else if(tries===2&&/^https?:/.test(src)&&src.indexOf(API)!==0){img.src=API+"/pic?u="+encodeURIComponent(src)}
+        else noPic();
+      };
+      img.src=src; th.appendChild(img);
+    }
     else noPic();
     if(it.price&&it.image) th.appendChild(el("span","price-tag",fmtPrice(it.price)));
     a.appendChild(th);
