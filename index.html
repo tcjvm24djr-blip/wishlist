@@ -22,27 +22,30 @@
       <div class="login-btns">
         <button type="button" data-user="Nasser" class="start-btn">Start ▶</button>
       </div>
-      <form id="pwform" class="pwform hidden" autocomplete="off">
-        <p class="pw-for">Password for <b id="pw-name"></b></p>
-        <input id="pw" type="password" placeholder="Password" autocapitalize="off" autocorrect="off" spellcheck="false">
-        <p id="pw-err" class="pw-err" aria-live="polite"></p>
-        <button type="submit" class="pw-go">Log in</button>
-        <button type="button" id="pw-back" class="pw-back">Back</button>
-      </form>
     </div>
   </div>
 
-  <div class="userbar" style="display:none"><div class="ub-left"><span class="avatar" id="avatar">?</span><div><small>LOGGED IN AS</small><b id="who">—</b></div></div><button type="button" id="switch">Switch user</button></div>
+  <nav class="tabs" aria-label="Lists">
+    <div class="tabs-scroll" id="tabs" role="tablist"></div>
+    <button type="button" id="groups-btn" class="groups-btn">＋ Groups</button>
+  </nav>
 
   <header class="hero">
     <div class="wrap">
-      <p class="kicker"><span class="dot" aria-hidden="true"></span><span id="owner">My</span> list</p>
-      <h1>Wish<span>list</span></h1>
-      <p class="intro">Paste any link. It pops up with the picture, name and price.</p>
+      <p class="kicker"><span class="dot" aria-hidden="true"></span><span id="owner">My list</span></p>
+      <h1 id="h1">Wish<span>list</span></h1>
+      <p class="intro" id="intro">Paste any link. It pops up with the picture, name and price.</p>
     </div>
   </header>
 
   <main class="wrap">
+    <section id="invite" class="invite hidden" aria-label="Invite code">
+      <div class="inv-top">
+        <div><small>INVITE CODE</small><div class="code" id="inv-code">——————</div></div>
+        <div class="inv-btns"><button type="button" id="copy-code" class="ghost sm">Copy</button><button type="button" id="share-link" class="add sm">Share link</button></div>
+      </div>
+      <p class="inv-hint" id="inv-hint">Friends type this code in <b>＋ Groups → Join</b> and add to the same list from their phone.</p>
+    </section>
     <form id="addform" class="adder" autocomplete="off" novalidate>
       <label for="url" class="sr-only">Paste a link</label>
       <input id="url" type="text" inputmode="url" enterkeyhint="go" placeholder="Paste a link…" autocapitalize="off" autocorrect="off" spellcheck="false">
@@ -58,8 +61,9 @@
     <section aria-labelledby="list-h">
       <div class="sec-head">
         <h2 id="list-h">Wishes</h2>
-        <div class="stats"><span id="count">0 items</span> · <span id="total">$0</span></div>
+        <div class="stats"><span id="count">0 items</span> · <span id="total">$0</span><button type="button" id="refresh" class="refresh hidden" aria-label="Refresh">⟳</button></div>
       </div>
+      <p id="sync" class="sync hidden" aria-live="polite"></p>
       <div class="filters" role="tablist">
         <button type="button" class="chip on" data-filter="all">All</button>
         <button type="button" class="chip" data-filter="want">Still want</button>
@@ -73,7 +77,7 @@
     </section>
   </main>
 
-  <footer class="wrap foot"><p>Wishlist · saved on this phone</p></footer>
+  <footer class="wrap foot"><p id="foot">Wishlist · saved on this phone</p></footer>
 
   <div id="sheet" class="sheet hidden" role="dialog" aria-modal="true" aria-labelledby="sheet-h">
     <form id="editform" class="sheet-card">
@@ -84,6 +88,33 @@
       <div class="sheet-btns"><button type="button" id="e-cancel" class="ghost">Cancel</button><button type="submit" class="add">Save</button></div>
     </form>
   </div>
+  <div id="gsheet" class="sheet hidden" role="dialog" aria-modal="true" aria-labelledby="gsheet-h">
+    <div class="sheet-card">
+      <div class="sheet-top"><h3 id="gsheet-h">Groups</h3><button type="button" id="g-close" class="x" aria-label="Close">✕</button></div>
+      <form id="createform" class="gform" autocomplete="off">
+        <label for="g-name">Make a group</label>
+        <div class="row"><input id="g-name" type="text" maxlength="40" placeholder="Name it (like Christmas)"><button type="submit" class="add">Create</button></div>
+      </form>
+      <form id="joinform" class="gform" autocomplete="off">
+        <label for="g-code">Join with a code</label>
+        <div class="row"><input id="g-code" type="text" maxlength="8" placeholder="K7Q2PX" autocapitalize="characters" autocorrect="off" spellcheck="false" class="codein"><button type="submit" class="add">Join</button></div>
+      </form>
+      <p id="g-msg" class="add-msg" aria-live="polite"></p>
+      <div id="g-list" class="g-list"></div>
+    </div>
+  </div>
+
+  <div id="nsheet" class="sheet hidden" role="dialog" aria-modal="true" aria-labelledby="nsheet-h">
+    <form id="nickform" class="sheet-card" autocomplete="off">
+      <h3 id="nsheet-h">What should your friends see?</h3>
+      <p class="sheet-p">Shows on stuff you add to group lists, like “added by Naz”. Optional.</p>
+      <label class="sr-only" for="nick">Nickname</label>
+      <input id="nick" type="text" maxlength="20" placeholder="Nickname">
+      <div class="sheet-btns"><button type="button" id="n-skip" class="ghost">Skip</button><button type="submit" class="add">Save</button></div>
+    </form>
+  </div>
+
+  <div id="toast" class="toast hidden" role="status"></div>
   <script src="script.js"></script>
 </body>
 </html>
