@@ -253,18 +253,56 @@
     if(found&&/^\d/.test(found)&&d.currency==="USD")found="$"+found;
     return found;
   }
+  var BLOCKED=/attention required|just a moment|access denied|are you a robot|robot or human|captcha|security check|verify you are human|pardon our interruption|request blocked|forbidden|cloudflare|perimeterx|incapsula|enable javascript|not found|^error|403|404/i;
+  var SITE_NAMES={aritzia:"Aritzia",lululemon:"lululemon",shein:"SHEIN",zara:"ZARA",hm:"H&M",asos:"ASOS",nike:"Nike",amazon:"Amazon",adidas:"adidas",uniqlo:"UNIQLO",skims:"SKIMS",urbanoutfitters:"Urban Outfitters",abercrombie:"Abercrombie",hollisterco:"Hollister",ae:"American Eagle",garageclothing:"Garage",brandymelville:"Brandy Melville",pacsun:"PacSun",gap:"Gap",target:"Target",walmart:"Walmart",bestbuy:"Best Buy",sephora:"Sephora",ulta:"Ulta",stockx:"StockX",goat:"GOAT",footlocker:"Foot Locker",jdsports:"JD Sports",apple:"Apple",etsy:"Etsy",temu:"Temu"};
+  function siteName(u){
+    var h=domain(u).split("."), base=h.length>2&&/^(co|com)$/.test(h[h.length-2])?h[h.length-3]:h[h.length-2]||h[0];
+    base=(base||"").toLowerCase();
+    return SITE_NAMES[base]||(base.charAt(0).toUpperCase()+base.slice(1));
+  }
+  // readable name from the link itself, e.g. /product/cozy-sweatfleece-mega-straight™-sweatpant/116292.html
+  function slugName(u){
+    var segs=[];try{segs=new URL(u).pathname.split("/")}catch(_){return ""}
+    var best="",score=0;
+    segs.forEach(function(sg){
+      var t;try{t=decodeURIComponent(sg)}catch(_){t=sg}
+      t=t.replace(/\.(html?|php|aspx?)$/i,"").replace(/[_+]/g,"-");
+      var words=t.split("-").filter(function(w){return w&&/[a-z\u00c0-\uffff]/i.test(w)&&!/^\d+$/.test(w)});
+      if(words.length<2)return;
+      var sc=words.join("").length+words.length*3;
+      if(sc>score){score=sc;best=words.join(" ")}
+    });
+    if(!best)return "";
+    best=best.replace(/\b(prod|sku|p|dp|pd|item)\d*\b/gi,"").replace(/\s+/g," ").trim();
+    return best.split(" ").map(function(w){return /^(and|or|of|the|with|in|for|a)$/i.test(w)?w.toLowerCase():w.charAt(0).toUpperCase()+w.slice(1)}).join(" ").replace(/^./,function(c){return c.toUpperCase()}).slice(0,120);
+  }
+  function timed(p,ms){return Promise.race([p,new Promise(function(r){setTimeout(function(){r(null)},ms)})])}
+  function microlink(url){
+    return timed(fetch("https://api.microlink.io/?url="+encodeURIComponent(url)).then(function(r){return r.json()}).then(function(j){
+      if(!j||j.status!=="success"||!j.data)return null;
+      var d=j.data, t=(d.title||"").replace(/\s+/g," ").trim();
+      var blocked=!t||BLOCKED.test(t)||BLOCKED.test(d.publisher||"");
+      return {title:blocked?"":t,image:blocked?"":(d.image&&d.image.url||""),logo:d.logo&&d.logo.url||"",site:blocked?"":(d.publisher||""),price:blocked?"":(findPrice(d)||""),blocked:blocked};
+    }).catch(function(){return null}),15000);
+  }
+  function serverMeta(url){
+    return timed(fetch(API+"/meta?url="+encodeURIComponent(url)).then(function(r){return r.json()}).then(function(j){
+      if(!j||!j.ok)return null;
+      var t=(j.title||"").trim(); if(BLOCKED.test(t))t="";
+      return {title:t,image:j.image||"",logo:j.logo||"",site:j.site||"",price:j.price||""};
+    }).catch(function(){return null}),12000);
+  }
+  // returns {title,image,logo,site,price,blocked,named} or null
   function fetchMeta(url){
-    var ctl=("AbortController" in window)?new AbortController():null;
-    var timer=setTimeout(function(){if(ctl)ctl.abort()},20000);
-    return fetch("https://api.microlink.io/?url="+encodeURIComponent(url),ctl?{signal:ctl.signal}:{})
-      .then(function(r){return r.json()})
-      .then(function(j){
-        clearTimeout(timer);
-        if(!j||j.status!=="success"||!j.data)throw new Error("no data");
-        var d=j.data;
-        return {title:(d.title||"").replace(/\s+/g," ").trim(),image:d.image&&d.image.url||"",logo:d.logo&&d.logo.url||"",site:d.publisher||"",price:findPrice(d)||""};
-      })
-      .catch(function(){clearTimeout(timer);return null});
+    return Promise.all([microlink(url),serverMeta(url)]).then(function(r){
+      var a=r[0]||{}, b=r[1]||{};
+      if(!r[0]&&!r[1]){var sn=slugName(url);return sn?{title:sn,image:"",logo:"",site:siteName(url),price:"",blocked:true,named:true}:null}
+      var m={image:a.image||b.image||"",title:a.title||b.title||"",logo:a.logo||b.logo||"",site:a.site||b.site||"",price:b.price||a.price||""};
+      m.blocked=!m.image&&(a.blocked||!r[0]);
+      if(!m.title){m.title=slugName(url);m.named=!!m.title}
+      if(!m.site||BLOCKED.test(m.site))m.site=siteName(url);
+      return m;
+    });
   }
 
   /* ---------- add ---------- */
@@ -287,11 +325,12 @@
     fetchMeta(url).then(function(m){
       if(m){it.title=m.title||domain(url);it.image=m.image||"";it.logo=m.logo||"";it.site=m.site||domain(url);if(!it.price&&m.price)it.price=String(m.price).slice(0,30)}
       else it.title=domain(url);
+      var nopic=!it.image, picMsg=m&&m.blocked?(it.site||"That site")+" blocks auto pics. Tap 📷 Add pic to add one":"No pic came through. Tap 📷 Add pic to add one";
       it.loading=false;
       if(!grp){
         if(view!=="me")return;
         var cur=items.filter(function(x){return x.id===it.id})[0]; if(!cur)return;
-        say(m?"Added ✓":"Added — couldn't get a preview for that one, tap ✎ to name it"); save(); render(); return;
+        say(!m?"Added — couldn't get a preview for that one, tap ✎ to name it":nopic?picMsg:"Added ✓"); save(); render(); return;
       }
       var payload={id:it.id,url:it.url,title:it.title,image:it.image,logo:it.logo,site:it.site,price:it.price,note:"",got:false,by:it.by};
       if(view===code)render();
@@ -299,7 +338,7 @@
         delete pending[it.id];
         if(view!==code)return;
         items=items.map(function(x){return x.id===it.id?saved:x});
-        save(); render(); say(m?"Added for the whole group ✓":"Added — tap ✎ to name it"); refreshGroup();
+        save(); render(); say(!m?"Added — tap ✎ to name it":nopic?picMsg:"Added for the whole group ✓"); refreshGroup();
       }).catch(function(err){
         delete pending[it.id];
         if(view!==code)return;
@@ -323,12 +362,17 @@
     var a=el("a","open"); a.href=it.url; a.target="_blank"; a.rel="noopener noreferrer";
     var th=el("div","thumb"), img=el("img");
     img.alt=""; img.loading="lazy"; img.referrerPolicy="no-referrer"; img.decoding="async";
-    function useLogo(){th.classList.add("logo"); img.onerror=null; img.src=favicon(it.url)}
-    if(it.image){img.src=it.image; img.onerror=function(){ if(it.logo&&img.src!==it.logo){th.classList.add("logo");img.src=it.logo;img.onerror=useLogo} else useLogo() }}
-    else if(it.logo){th.classList.add("logo"); img.src=it.logo; img.onerror=useLogo}
-    else useLogo();
-    th.appendChild(img);
-    if(it.price) th.appendChild(el("span","price-tag",fmtPrice(it.price)));
+    function noPic(){
+      th.innerHTML=""; th.classList.add("nopic");
+      var ph=el("span","addpic"); ph.dataset.act="photo"; ph.setAttribute("role","button"); ph.setAttribute("aria-label","Add a picture");
+      var fi=el("img"); fi.alt=""; fi.referrerPolicy="no-referrer"; fi.src=favicon(it.url); fi.onerror=function(){fi.remove()};
+      ph.appendChild(fi); ph.appendChild(el("b",null,"📷 Add pic"));
+      th.appendChild(ph);
+      if(it.price) th.appendChild(el("span","price-tag",fmtPrice(it.price)));
+    }
+    if(it.image){img.src=it.image; img.onerror=noPic; th.appendChild(img)}
+    else noPic();
+    if(it.price&&it.image) th.appendChild(el("span","price-tag",fmtPrice(it.price)));
     a.appendChild(th);
     var info=el("div","info"), site=el("div","site"), fi=el("img");
     fi.src=favicon(it.url); fi.alt=""; fi.referrerPolicy="no-referrer"; site.appendChild(fi); site.appendChild(document.createTextNode(it.site||domain(it.url)));
@@ -372,7 +416,7 @@
   }
   var editingId=null;
   $("grid").addEventListener("click",function(e){
-    var b=e.target.closest("button[data-act]"); if(!b)return;
+    var b=e.target.closest("[data-act]"); if(!b||b.disabled)return;
     e.preventDefault();
     var id=b.closest(".card").dataset.id, it=items.filter(function(x){return x.id===id})[0]; if(!it)return;
     var act=b.dataset.act;
@@ -381,18 +425,112 @@
       items=items.filter(function(x){return x.id!==id});save();render();
       if(isGroup()){var code=view;api("DELETE","/groups/"+code+"/items/"+id).catch(function(){toast("Couldn't delete. Check your internet.");refreshGroup()})}
     }
-    else if(act==="edit"){editingId=id;$("e-title").value=it.title||"";$("e-price").value=it.price||"";$("e-note").value=it.note||"";$("sheet").classList.remove("hidden")}
+    else if(act==="edit"){openEdit(it)}
+    else if(act==="photo"){if(pending[id])return;photoFor=id;var qf=$("q-file");qf.value="";qf.click()}
   });
-  function closeSheet(){$("sheet").classList.add("hidden");editingId=null}
+  /* ---------- photos ---------- */
+  var photoFor=null, ePhoto=null; // ePhoto: undefined/null = unchanged, {blob,url} = new file, {link} = image link, {remove:true}
+  function loadImg(file){
+    return new Promise(function(res,rej){
+      var u=URL.createObjectURL(file), im=new Image();
+      im.onload=function(){res({im:im,done:function(){URL.revokeObjectURL(u)}})};
+      im.onerror=function(){URL.revokeObjectURL(u);rej(new Error("That file isn't a photo we can read"))};
+      im.src=u;
+    });
+  }
+  // shrink to ~600px JPEG so it's small enough to save + sync
+  function shrink(file){
+    if(!file||!/^image\//.test(file.type||"image/"))return Promise.reject(new Error("Pick a photo"));
+    return loadImg(file).then(function(o){
+      var im=o.im, max=640, w=im.naturalWidth||im.width, h=im.naturalHeight||im.height;
+      if(!w||!h){o.done();throw new Error("That photo didn't load")}
+      var sc=Math.min(1,max/Math.max(w,h)); w=Math.round(w*sc); h=Math.round(h*sc);
+      var c=document.createElement("canvas"); c.width=w; c.height=h;
+      var x=c.getContext("2d"); x.fillStyle="#fff"; x.fillRect(0,0,w,h); x.drawImage(im,0,0,w,h); o.done();
+      var q=0.82, url=c.toDataURL("image/jpeg",q);
+      while(url.length>160000&&q>0.4){q-=0.12;url=c.toDataURL("image/jpeg",q)}
+      return {url:url,blob:dataBlob(url)};
+    });
+  }
+  function dataBlob(d){var p=d.split(","),bin=atob(p[1]),u=new Uint8Array(bin.length);for(var i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i);return new Blob([u],{type:"image/jpeg"})}
+  function uploadImg(blob){
+    return fetch(API+"/img",{method:"POST",headers:{"Content-Type":"image/jpeg"},body:blob}).then(function(r){
+      return r.json().catch(function(){return {}}).then(function(j){if(!r.ok||!j.url)throw new Error(j.error||"Upload failed");return j.url});
+    });
+  }
+  function saveStrict(){
+    if(isGroup()){save();return true}
+    try{localStorage.setItem(cacheKey(),JSON.stringify(items));return true}catch(e){return false}
+  }
+  // set an item's picture: photo {url,blob} or link string or "" to remove
+  function setPhoto(id,photo){
+    var it=items.filter(function(x){return x.id===id})[0]; if(!it)return Promise.resolve();
+    var before=it.image;
+    if(!isGroup()){
+      it.image=photo&&photo.url?photo.url:(photo||"");
+      if(!saveStrict()){it.image=before;render();toast("Phone storage is full. Remove a few photos and try again.");return Promise.resolve(false)}
+      render(); toast(it.image?"Pic added ✓":"Pic removed"); return Promise.resolve(true);
+    }
+    var code=view; pending[id]=true;
+    it.image=photo&&photo.url?photo.url:(photo||""); render();
+    var up=photo&&photo.blob?uploadImg(photo.blob):Promise.resolve(it.image);
+    return up.then(function(u){
+      return api("PATCH","/groups/"+code+"/items/"+id,{image:u}).then(function(saved){
+        delete pending[id]; if(view!==code)return;
+        items=items.map(function(x){return x.id===id?saved:x}); save(); render(); toast(u?"Pic added for everyone ✓":"Pic removed");
+        return true;
+      });
+    }).catch(function(err){
+      delete pending[id]; if(view!==code)return;
+      it.image=before; render(); toast(err.status===404?"Someone deleted that one":"Couldn't add the pic. Check your internet."); refreshGroup(); return false;
+    });
+  }
+  $("q-file").addEventListener("change",function(){
+    var f=this.files&&this.files[0], id=photoFor; photoFor=null; if(!f||!id)return;
+    toast("Adding pic…");
+    shrink(f).then(function(p){return setPhoto(id,p)}).catch(function(e){toast(e.message||"Couldn't use that photo")});
+  });
+  function showPrev(src){
+    var p=$("e-prev"); p.innerHTML="";
+    if(src){var im=el("img");im.alt="";im.referrerPolicy="no-referrer";im.src=src;im.onerror=function(){p.innerHTML='<span>That link isn\u2019t a picture</span>'};p.appendChild(im);p.classList.remove("empty")}
+    else{p.appendChild(el("span",null,"No pic"));p.classList.add("empty")}
+    $("e-rm").classList.toggle("hidden",!src);
+    $("e-photo-txt").textContent=src?"📷 Change photo":"📷 Add photo";
+  }
+  function openEdit(it){
+    editingId=it.id; ePhoto=null;
+    $("e-title").value=it.title||"";$("e-price").value=it.price||"";$("e-note").value=it.note||"";$("e-img").value="";
+    $("e-file").value=""; showPrev(it.image||""); $("e-pmsg").textContent="";
+    $("sheet").classList.remove("hidden");
+  }
+  $("e-file").addEventListener("change",function(){
+    var f=this.files&&this.files[0]; if(!f)return;
+    $("e-pmsg").textContent="Getting photo…";
+    shrink(f).then(function(p){ePhoto=p;$("e-img").value="";showPrev(p.url);$("e-pmsg").textContent="Looks good. Tap Save."})
+      .catch(function(e){$("e-pmsg").textContent=e.message||"Couldn't use that photo"});
+  });
+  $("e-img").addEventListener("input",function(){
+    var v=this.value.trim();
+    if(!v){ePhoto=null;var it=items.filter(function(x){return x.id===editingId})[0];showPrev(it&&it.image||"");return}
+    if(/^https?:\/\/\S+$/i.test(v)){ePhoto={link:v.slice(0,600)};showPrev(v);$("e-pmsg").textContent=""}
+    else $("e-pmsg").textContent="Paste a link that starts with https://";
+  });
+  $("e-rm").addEventListener("click",function(){ePhoto={remove:true};$("e-img").value="";showPrev("")});
+  function closeSheet(){$("sheet").classList.add("hidden");editingId=null;ePhoto=null}
   $("e-cancel").addEventListener("click",closeSheet);
   $("sheet").addEventListener("click",function(e){if(e.target===this)closeSheet()});
   $("editform").addEventListener("submit",function(e){
     e.preventDefault(); var it=items.filter(function(x){return x.id===editingId})[0]; if(!it){closeSheet();return}
     it.title=$("e-title").value.trim()||it.title; it.price=$("e-price").value.trim(); it.note=$("e-note").value.trim();
-    save(); render(); var id=it.id; closeSheet();
-    if(isGroup())groupPatch(id,{title:it.title,price:it.price,note:it.note});
+    var ph=ePhoto, id=it.id; closeSheet();
+    if(isGroup()){
+      var p=groupPatch(id,{title:it.title,price:it.price,note:it.note});
+      if(ph)p.then(function(){setPhoto(id,ph.remove?"":ph.link?ph.link:ph)});
+      render(); return;
+    }
+    save(); render();
+    if(ph)setPhoto(id,ph.remove?"":ph.link?ph.link:ph);
   });
-
 
   /* ---------- themes ---------- */
   (function(){
